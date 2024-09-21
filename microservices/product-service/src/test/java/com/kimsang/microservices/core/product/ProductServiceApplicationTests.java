@@ -1,8 +1,7 @@
 package com.kimsang.microservices.core.product;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.springframework.http.HttpStatus.OK;
-import static org.springframework.http.HttpStatus.UNPROCESSABLE_ENTITY;
+import static org.springframework.http.HttpStatus.*;
 import static reactor.core.publisher.Mono.just;
 import static org.springframework.boot.test.context.SpringBootTest.WebEnvironment.RANDOM_PORT;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
@@ -29,7 +28,7 @@ import java.time.Duration;
  */
 
 @SpringBootTest(webEnvironment = RANDOM_PORT)
-class ProductServiceApplicationTests {
+class ProductServiceApplicationTests extends MongoDbTestBase {
   @Autowired
   private WebTestClient client;
 
@@ -85,6 +84,31 @@ class ProductServiceApplicationTests {
     assertFalse(repository.findByProductId(productId).isPresent());
 
     deleteAndVerifyProduct(productId, OK);
+  }
+
+  @Test
+  void getProductInvalidParameterString() {
+    getAndVerifyProduct("/no-integer", BAD_REQUEST)
+        .jsonPath("$.path").isEqualTo("/product/no-integer")
+        .jsonPath("$.message").isEqualTo("Type mismatch.");
+  }
+
+  @Test
+  void getProductNotFound() {
+    int productIdNotFound = 13;
+    getAndVerifyProduct(productIdNotFound, NOT_FOUND)
+        .jsonPath("$.path").isEqualTo("/product/" + productIdNotFound)
+        .jsonPath("$.message").isEqualTo("No product found for productId: " + productIdNotFound);
+  }
+
+  @Test
+  void getProductInvalidParameterNegativeValue() {
+    int productIdInvalid = -1;
+
+    getAndVerifyProduct(productIdInvalid, UNPROCESSABLE_ENTITY)
+        .jsonPath("$.path").isEqualTo("/product/" + productIdInvalid)
+        .jsonPath("$.message").isEqualTo("Invalid productId: " + productIdInvalid);
+
   }
 
   private WebTestClient.BodyContentSpec getAndVerifyProduct(int productId, HttpStatus expectedStatus) {
